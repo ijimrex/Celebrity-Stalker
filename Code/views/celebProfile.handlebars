@@ -1,0 +1,50 @@
+<!-- views/celebProfile.handlebars -->
+<style>
+html { overflow-y: visible; }
+</style>
+
+<div id="celebProfile" class="fluid-container">
+    <h1 id="title" align="center"></h1>
+    <img id="wikipedia-image" style="margin-left: 35%; max-width: 30%; max-height: 30%; position: relative;" src="http://www.websitemagazine.com/images/blog/anonymous-user.png"></img>
+    <div id="wikipedia-intro" style="border-style:solid; border-color:solid gray; 
+    padding: 10px; margin-left:10%; margin-right:10%; margin-top:1%;"></div>
+</div>
+
+<script type="text/javascript" >
+//Wikipedia intro but no styling or images:"http://en.wikipedia.org/w/api.php?format=json&action=query&prop=revisions&titles=Stack%20Overflow&rvprop=content&rvsection=0&indexpageids&rvparse&callback=?"
+function loadCelebProfile(firstName, lastname){
+
+    document.getElementById("title").innerHTML = firstName + " " + lastname;
+    var articleTitle = firstName + "%20" + lastname;
+    var articleIntro = "https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro=&explaintext=&indexpageids=&titles=" + articleTitle + "&callback=?"; //wikipedia intro
+    var articleImage = "https://en.wikipedia.org/w/api.php?action=query&prop=images&format=json&indexpageids=&titles=" + articleTitle + "&callback=?";//wikipedia image
+
+    //load wikipedia introduction
+    $.getJSON(articleIntro, function (data) {
+
+        var pageId = data.query.pageids[0],
+            introText = data.query.pages[pageId].extract;
+
+        if (typeof introText == 'undefined') {
+          document.getElementById("wikipedia-intro").innerHTML = "No information about this celebrity can be found";
+        } else {
+          document.getElementById("wikipedia-intro").innerHTML = introText;
+          //load wikipedia picture
+          $.getJSON(articleImage, function (data) {
+
+            var pageId = data.query.pageids[0],
+                imagetitle = data.query.pages[pageId].images[4].title,
+                imageLink = "https://en.wikipedia.org/w/api.php?action=query&prop=imageinfo&iiprop=url&format=json&indexpageids=&titles=" + imagetitle + "&callback=?";
+
+            $.getJSON(imageLink, function (data) {
+              var pageId = data.query.pageids[0];
+	      document.getElementById("wikipedia-image").src = data.query.pages[pageId].imageinfo[0].url;
+            });
+          });
+        }
+    });
+
+    
+}
+loadCelebProfile("{{cFirstName}}", "{{cLastName}}")
+</script>

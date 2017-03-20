@@ -1,0 +1,715 @@
+<!-- views/home.handlebars -->
+
+<!-- ======================== CSS and JavaScript for slideshow on homepage ========================= -->
+
+<style type="text/css">
+  html {
+    overflow: hidden;
+  }
+  #center {
+    position: absolute;
+    left: 50%;
+    top:  35%;
+  }
+ #slider {
+    display:none;
+    position: absolute;
+    width: 820px;
+    height: 333px;
+    left: -430px;
+    top: -186px;
+    overflow: hidden;
+    background: #000;
+    border: 5px solid #000;
+  }
+@media screen and (min-width:768px){
+    #slider {
+        display:block;
+    }
+}
+  #slider .slide {
+    position: absolute;
+    top: 0px;
+    height: 333px;
+    width: 500px;
+    background: #000;
+    overflow: hidden;
+    border-left: #000 solid 1px;
+    cursor: default;
+  }
+  #slider .title   {
+    color: #F80;
+    font-weight: bold;
+    font-size: 1.2em;
+    margin-right: 1.5em;
+    text-decoration: none;
+  }
+  #slider .backgroundText {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 100%;
+    background: #000;
+    filter: alpha(opacity=40);
+    opacity: 0.4;
+  }
+  #slider .text {
+    position: absolute;
+    top: 1%;
+    top: 100%;
+    color: #FFF;
+    font-family: verdana, arial, Helvetica, sans-serif;
+    font-size: 0.9em;
+    text-align: justify;
+    width: 470px;
+    left: 10px;
+  }
+  #slider .diapo {
+    position: absolute;
+    filter: alpha(opacity=100);
+    opacity: 1;
+    visibility: hidden;
+  }
+</style>
+
+<script type="text/javascript">
+/* ==== slider nameSpace ==== */
+var slider = function() {
+  /* ==== private methods ==== */
+  function getElementsByClass(object, tag, className) {
+    var o = object.getElementsByTagName(tag);
+    for ( var i = 0, n = o.length, ret = []; i < n; i++) {
+      if (o[i].className == className) ret.push(o[i]);
+    }
+    if (ret.length == 1) ret = ret[0];
+    return ret;
+  }
+  function setOpacity (obj,o) {
+    if (obj.filters) obj.filters.alpha.opacity = Math.round(o);
+    else obj.style.opacity = o / 100;
+  }
+  /* ==== Slider Constructor ==== */
+  function Slider(oCont, speed, iW, iH, oP) {
+    this.slides = [];
+    this.over   = false;
+    this.S      = this.S0 = speed;
+    this.iW     = iW;
+    this.iH     = iH;
+    this.oP     = oP;
+    this.oc     = document.getElementById(oCont);
+    this.frm    = getElementsByClass(this.oc, 'div', 'slide');
+    this.NF     = this.frm.length;
+    this.resize();
+    for (var i = 0; i < this.NF; i++) {
+      this.slides[i] = new Slide(this, i);
+    }
+    this.oc.parent = this;
+    this.view      = this.slides[0];
+    this.Z         = this.mx;
+    /* ==== on mouse out event ==== */
+    this.oc.onmouseout = function () {
+      this.parent.mouseout();
+      return false;
+    }
+  }
+  Slider.prototype = {
+    /* ==== animation loop ==== */
+    run : function () {
+      this.Z += this.over ? (this.mn - this.Z) * .5 : (this.mx - this.Z) * .5;
+      this.view.calc();
+      var i = this.NF;
+      while (i--) this.slides[i].move();
+    },
+    /* ==== resize  ==== */
+    resize : function () {
+      this.wh = this.oc.clientWidth;
+      this.ht = this.oc.clientHeight;
+      this.wr = this.wh * this.iW;
+      this.r  = this.ht / this.wr;
+      this.mx = this.wh / this.NF;
+      this.mn = (this.wh * (1 - this.iW)) / (this.NF - 1);
+    },
+    /* ==== rest  ==== */
+    mouseout : function () {
+      this.over      = false;
+      setOpacity(this.view.img, this.oP);
+    }
+  }
+  /* ==== Slide Constructor ==== */
+  Slide = function (parent, N) {
+    this.parent = parent;
+    this.N      = N;
+    this.x0     = this.x1 = N * parent.mx;
+    this.v      = 0;
+    this.loaded = false;
+    this.cpt    = 0;
+    this.start  = new Date();
+    this.obj    = parent.frm[N];
+    this.txt    = getElementsByClass(this.obj, 'div', 'text');
+    this.img    = getElementsByClass(this.obj, 'img', 'diapo');
+    this.bkg    = document.createElement('div');
+    this.bkg.className = 'backgroundText';
+    this.obj.insertBefore(this.bkg, this.txt);
+    if (N == 0) this.obj.style.borderLeft = 'none';
+    this.obj.style.left = Math.floor(this.x0) + 'px';
+    setOpacity(this.img, parent.oP);
+    /* ==== mouse events ==== */
+    this.obj.parent = this;
+    this.obj.onmouseover = function() {
+      this.parent.over();
+      return false;
+    }
+  }
+  Slide.prototype = {
+    /* ==== target positions ==== */
+    calc : function() {
+      var that = this.parent;
+      // left slides
+      for (var i = 0; i <= this.N; i++) {
+        that.slides[i].x1 = i * that.Z;
+      }
+      // right slides
+      for (var i = this.N + 1; i < that.NF; i++) {
+        that.slides[i].x1 = that.wh - (that.NF - i) * that.Z;
+      }
+    },
+    /* ==== HTML animation : move slides ==== */
+    move : function() {
+      var that = this.parent;
+      var s = (this.x1 - this.x0) / that.S;
+      /* ==== lateral slide ==== */
+      if (this.N && Math.abs(s) > .5) {
+        this.obj.style.left = Math.floor(this.x0 += s) + 'px';
+      }
+      /* ==== vertical text ==== */
+      var v = (this.N < that.NF - 1) ? that.slides[this.N + 1].x0 - this.x0 : that.wh - this.x0;
+      if (Math.abs(v - this.v) > .5) {
+        this.bkg.style.top = this.txt.style.top = Math.floor(2 + that.ht - (v - that.Z) * that.iH * that.r) + 'px';
+        this.v = v;
+        this.cpt++;
+      } else {
+        if (!this.pro) {
+          /* ==== adjust speed ==== */
+          this.pro = true;
+          var tps = new Date() - this.start;
+          if(this.cpt > 1) {
+            that.S = Math.max(2, (28 / (tps / this.cpt)) * that.S0);
+          }
+        }
+      }
+      if (!this.loaded) {
+        if (this.img.complete) {
+          this.img.style.visibility = 'visible';
+          this.loaded = true;
+        }
+      }
+    },
+    /* ==== light ==== */
+    over : function () {
+      this.parent.resize();
+      this.parent.over = true;
+      setOpacity(this.parent.view.img, this.parent.oP);
+      this.parent.view = this;
+      this.start = new Date();
+      this.cpt = 0;
+      this.pro = false;
+      this.calc();
+      setOpacity(this.img, 100);
+    }
+  }
+  /* ==== public method - script initialization ==== */
+  return {
+    init : function() {
+      // create instances of sliders here
+      // parameters : HTMLcontainer name, speed (2 fast - 20 slow), Horizontal ratio, vertical text ratio, opacity
+      this.s1 = new Slider("slider", 12, 1.84/3, 1/3.2, 70);
+      setInterval("slider.s1.run();", 16);
+    }
+  }
+}();
+</script>
+
+
+<!-- ======================================== HOME VIEW HTML ======================================== -->
+
+
+<div id="Home" class="container-fluid">
+  {{#if user}}
+  <h1 align="center">Welcome, {{user.username}}</h1>
+  {{else}}
+  <h1 align="center">Welcome!</h1><br>
+  {{/if}}
+  <div id="center" style="position:relative"> 
+  <div id="slider"> 
+    <div class="slide" style="border-left-style: none; left: 0px;"> <img class="diapo" src="http://i.dailymail.co.uk/i/pix/2012/05/06/article-2140073-12EA9DC5000005DC-691_634x474.jpg" alt="" style="opacity: 0.7; visibility: visible;"> 
+      <div class="backgroundText" style="top: 335px;"></div><div class="text" style="top: 335px;"> <span class="title">Concert!</span> There was a touching moment at last night's Coldplay concert as the band took the time to pay tribute to late Beastie Boys star Adam Yauch, who died yesterday after a battle with cancer.
+</div>
+    </div>
+    <div class="slide" style="left: 82px;" max-width:100%;max-height:100%> <img class="diapo" src="http://media1.fdncms.com/gambit/imager/u/blog/2740900/obama2013.jpg?cb=1440810935" alt="" style="opacity: 0.7; visibility: visible;"> 
+      <div class="backgroundText" style="top: 335px;"></div><div class="text" style="top: 335px;"> <span class="title">Politician!</span> Barack Obama will visit New Orleans on Aug. 27 to mark the 10th anniversary of Hurricane Katrina and the federal levee failures </div>
+    </div>
+    <div class="slide" style="left: 164px;"> <img class="diapo" src="http://jkrowlingnhd.weebly.com/uploads/4/4/3/6/44366127/6733510_orig.jpg" alt="" style="opacity: 0.7; visibility: visible;"> 
+      <div class="backgroundText" style="top: 335px;"></div><div class="text" style="top: 335px;"> <span class="title">Writer!</span> J.K Rowling was seen in the cafe on Friday </div>
+    </div>
+    <div class="slide" style="left: 246px;"> <img class="diapo" src="http://www.pba-online.net/uploads/photo/lebron-james-072413-2.jpg" alt="" style="opacity: 0.7; visibility: visible;"> 
+      <div class="backgroundText" style="top: 335px;"></div><div class="text" style="top: 335px;"> <span class="title">Sport star!</span> NBA superstar LeBron James capped his one-day visit to Manila by coaching – and then playing with – a team composed of college players</div>
+    </div>
+    <div class="slide" style="left: 328px;"> <img class="diapo" src="http://www.chinadaily.com.cn/entertainment/images/attachement/jpg/site1/20120820/00221917e9c4119bdb2c02.jpg" alt="" style="opacity: 0.7; visibility: visible;"> 
+      <div class="backgroundText" style="top: 335px;"></div><div class="text" style="top: 335px;"> <span class="title">Huge!!!</span>NBA basketball player Kobe Bryant of the US fights for the ball with Taiwan singer Jay Chou during a charity game in Shanghai.
+      </div>
+    </div>
+    <div class="slide" style="left: 410px;"> <img class="diapo" src="http://www.femalefirst.co.uk/image-library/partners/bang/land/500/j/jack-black-and-cara-delevingne-c-instagram-d91d89fdd228003a5.jpg" alt="" style="opacity: 0.7; visibility: visible;"> 
+      <div class="backgroundText" style="top: 335px;"></div><div class="text" style="top: 335px;"> <span class="title">Actor!</span> Jack Black and Cara Delevingne (c) Instagram </div>
+    </div>
+    <div class="slide" style="left: 492px;"> <img class="diapo" src="http://www.cambridge-news.co.uk/images/localworld/ugc-images/276453/Article/images/28357346/11597929-large.jpg" alt="" style="opacity: 0.7; visibility: visible;"> 
+      <div class="backgroundText" style="top: 335px;"></div><div class="text" style="top: 335px;"> <span class="title">Physicist</span> Eddie Redmayne attends Stephen Hawking Foundation launch at the Royal Institution</div>
+    </div>
+    <div class="slide" style="left: 574px;"> <img class="diapo" src="http://www.zuojing.com/upload/2014/1226/1419575576968.jpg" alt="" style="opacity: 0.7; visibility: visible;"> 
+      <div class="backgroundText" style="top: 335px;"></div><div class="text" style="top: 335px;"> <span class="title">Technology!</span>Tim Cook visited China and took a picture with students </div>
+    </div>
+    <div class="slide" style="left: 656px;"> <img class="diapo" src="http://img3.wikia.nocookie.net/__cb20120924180747/ladygaga/images/thumb/8/89/Lady_Gaga_7275.jpg/500px-Lady_Gaga_7275.jpg" alt="" style="opacity: 0.7; visibility: visible;"> 
+      <div class="backgroundText" style="top: 335px;"></div><div class="text" style="top: 335px;"> <span class="title">Singer!</span> Lady Gaga is in Paris </div>
+    </div>
+    <div class="slide" style="left: 738px;"> <img class="diapo" src="https://s-media-cache-ak0.pinimg.com/736x/8d/77/81/8d778123aeac668a04bcc0120849f566.jpg" alt="" style="opacity: 0.7; visibility: visible;"> 
+      <div class="backgroundText" style="top: 335px;"></div><div class="text" style="top: 335px;"> <a class="title" href="http://www.dhteumeuleu.com/">Sport star!</a> Messi with his son on the street.</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div id="Map" class="container-fluid">
+  <h1 id="headerMap" align="center">Map</h1>
+  <div id="map" style="left: 10%; width: 80%; height: 70%; position: absolute;"></div>
+  <button id="location" type="button" onclick="locating()" style="position: absolute; left: 10%; top:14%; color:#fff; background-color:gray; border-color:gray;">My location</button>
+  <button id="view" type="button" onclick="changeMapView()" style="position: absolute; right: 10%; top:14%; color:#fff; background-color:gray; border-color:gray;">Search</button>
+  <div class="container-fluid" align="center" style="margin-top:1%">
+    <input id="pac-input" class="controls" type="text" placeholder="Search a celebrity">
+    <button id="search" type="button" onclick="search()" style="color:#fff; background-color:gray; border-color:gray;">search</button>
+  </div>
+  <div id="result" align="center" style="border-style:solid; border-color:solid gray; 
+    padding: 10px; margin-left:25%; margin-right:25%; margin-top:1%;"></div>
+</div>
+
+{{#if user}}
+<div id="Profile" class="container-fluid">
+  <h1 align="center">Profile</h1>
+  <div id="profileBox" style="border-style:solid; border-color:solid gray; 
+    padding: 10px; margin-left:25%; margin-right:25%; margin-top:1%;">
+    <img id="profilePic" src="http://isigned.org/images/anonymous.png" align="right"></img>
+    <b>Username: <b><b style="color:#5882FA;" id="PBusername"></b><br>
+    <b>First name: <b><b style="color:#5882FA;" id="PBfname"></b><br>
+    <b>Last name: <b><b style="color:#5882FA;" id="PBlname"></b><br><br>
+    <b>Birthday: <b><b style="color:#5882FA;" id="PBbd"></b><br>
+    <b>Sex: <b><b style="color:#5882FA;" id="PBsex"></b><br>
+    <b>Country: <b><b style="color:#5882FA;" id="PBcountry"></b><br><br>
+    <b>E-mail: <b><a href id="PBemail"></a><br>
+    <b>Facebook: <b><a href="#" id="PBfb"></a><br>
+    <a  href="#" data-toggle="modal" data-target="#editAccModal" id="edit">Edit</button>
+  </div>
+</div>
+
+<!-- =========================== JavaScript to load and display profile ============================= -->
+
+<script>
+$.getJSON("http://127.0.0.1:3000/getProfileInfo?uid={{user.id}}", {
+    dataType: 'JSONP'
+  }, function(data){
+    operateProfile(data);//using data
+  }
+);
+
+function operateProfile(data) {
+  document.getElementById("PBusername").innerHTML = data.username;
+  document.getElementById("PBfname").innerHTML = data.fName;
+  document.getElementById("PBlname").innerHTML = data.lName;
+  document.getElementById("PBbd").innerHTML = data.birthday;
+  document.getElementById("PBsex").innerHTML = data.sex;
+  document.getElementById("PBcountry").innerHTML = data.country;
+  document.getElementById("PBemail").innerHTML = data.email;
+  document.getElementById("PBemail").href = "mailto:" + data.email;
+  document.getElementById("PBfb").innerHTML = data.facebookLink;
+  document.getElementById("PBfb").href = data.facebookLink;
+}
+</script>
+{{/if}}
+
+<script>
+slider.init();
+</script>
+
+<!-- ================================= JavaScript for Google Maps =================================== -->
+
+<script type="text/javascript">
+var markers=new Array();
+var infowindows= new Array();
+var html =new Array();
+var marker;
+var infowindow;
+var user=0;
+var id=0;
+var t;
+var d=-1;
+var saving=0;
+var tosave=false;
+var deleteposition;
+var latlng;
+var res;
+
+function initialize() {
+  var celename=new Array();
+  var options = {
+    zoom: 16,
+    center: latlng,
+    mapTypeId: google.maps.MapTypeId.ROADMAP
+  }
+
+//load the map
+map = new google.maps.Map(document.getElementById("map"), options);
+
+//get the realtime location using setCenter()
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(function showPosition(myposition){
+    pos = {
+      lat: myposition.coords.latitude,
+      lng: myposition.coords.longitude
+    };
+    map.setCenter(pos);
+
+
+//getdata from server
+var url1 = "http://127.0.0.1:3000/getAllEvents";
+$.getJSON(url1, {
+  dataType: 'JSONP'
+}, function(data){
+operate(data);//using data
+});
+//get end 
+});
+} else { 
+  alert("Locating not supported");
+} 
+
+
+
+
+function operate(data){
+
+
+//marks generated from database
+
+for ( t = 0; t < data.length; t++) {
+  latlng = new google.maps.LatLng(data[t].lat,data[t].lng);
+var othersicon="http://orig08.deviantart.net/fa93/f/2012/037/5/9/blue_star_icon_by_midnight_flame-d4oxfj5.png";//other people's markers
+var myicon="https://www.icts.uiowa.edu/confluence/s/en_GB/3284/33/_/images/icons/emoticons/star_red.png";//users'marks
+var dis=getDistance(data[t].lat,data[t].lng,pos.lat,pos.lng)
+if(data[t].uid==user){
+  markers[t]=new google.maps.Marker({
+    position:latlng,
+    map: map,
+    icon: myicon,
+    id:t,
+    userid:data.uid,
+    title: data[t].cele,
+    animation: google.maps.Animation.DROP,
+    from: "database",
+    distance:dis,
+    percentage:0
+  });
+}
+else
+{
+  markers[t]=new google.maps.Marker({
+    position:latlng,
+    map: map,
+    icon: othersicon,
+    id:t,
+    userid:data.uid,
+    title: data[t].cele,
+    animation: google.maps.Animation.DROP,
+    from: "database",
+    distance:dis,
+    percentage:0
+  });
+}
+
+
+//not the user himself
+if(data[t].uid!=user)
+  html[t]="<div style='background-color: #DCDCDC'> <h2 align='center'>"+data[t].cele+"</h2><h4 align='center'>Address: "+data[t].address+"</h4><h5 align='center'>Reporter: "+data[t].uid+"</h5></div><table><tr><td><div class='fb-like' data-href='http://localhost:3000/' data-width='400' data-layout='standard' data-action='like' data-show-faces='true' data-share='true'></div></td></tr><tr><td><a href='https://twitter.com/share' class='twitter-share-button'{count} data-hashtags='CelebStalker'>Tweet</a></td></tr></table>";
+//the user himself
+else
+  html[t]="<div style='background-color: #DCDCDC'> <h2 align='center'>"+data[t].cele+"</h2><h4 align='center'>Address: "+data[t].address+"</h4><h5 align='center'> You are the reporter! </h5></div><table style='width:200px'><tr><td><div class='fb-share-button' data-href='http://localhost:3000/' data-layout='button'></div></td><td><a href='https://twitter.com/share' class='twitter-share-button'{count} data-hashtags='CelebStalker'>Tweet</a></td></tr><tr><td><button id='buttondelete' type='button' onclick='Deleted()'>Delete</button></td></tr></table>";
+
+
+//generate the infowindows of existing positions
+
+infowindows[t] = new google.maps.InfoWindow(  
+  { content: html[t]  
+  });
+google.maps.event.addListener(markers[t], "click", function(t) {
+if(d==-1)
+  {infowindows[this.id].open(map, this);
+    deleteposition=this.getPosition();
+  }
+
+  else{
+    infowindows[d].close();
+    infowindows[this.id].open(map, this);
+    deleteposition=this.getPosition();
+  }
+  d=this.id;
+
+});
+google.maps.event.addListener(infowindows[t], 'domready', function(event) {
+    FB.XFBML.parse();
+    twttr.widgets.load();
+});
+celename[t]=data[t].cele;
+
+};//for end
+
+markers.sort(function(o1, o2) {//sort by distance
+  return o1.distance - o2.distance;
+}); 
+res="<h1>Nearest Celebrities</h1>";
+for (var i = 0; i < markers.length&&i<10; i++) {
+  var name = markers[i].title.split(" ");
+  if (name.length == 2) {
+    res=res+"<a href='/celebProfile?fName="+name[0]+"&lName="+name[1]+"'>"+markers[i].title+" :  "+markers[i].distance+" KM </a><br> "
+  } else {
+    res=res+"<a href=/#map>"+markers[i].title+" :  "+markers[i].distance+" KM </a> "
+  }
+};
+document.getElementById("result").innerHTML = res;
+//info showed in infowindow of adding
+var html1 = "<table>" +
+"<tr><td>Name of celebrity:</td> <td><input type='text' id='name'/><div id='errorname'></div> </td> </tr>" +
+"<tr><td>Place:</td> <td><input type='text' id='address'/><div id='errorplace'></div></td> </tr>" +
+"<tr><td>Type:</td> <td><select id='type'>" +
+"<option value='bar' SELECTED>bar</option>" +
+"<option value='restaurant'>restaurant</option>" +
+"</select> </td></tr>" +
+"<tr><td></td><td><input type='button' value='Save' onclick='saveData()'/></td></tr>";
+infowindow = new google.maps.InfoWindow({
+  content: html1
+});
+//click once: show markers and infowindow
+//click on other places except the existed markers disappear
+
+$(function() {
+  celename.sort();//show according to the alphabet 
+  $( "#pac-input" ).autocomplete({//
+    source: celename
+  });
+});
+
+}//operate
+}//initend
+
+
+//save new marker in the database
+
+function saveData() {
+  var name = escape(document.getElementById("name").value);
+  var address = escape(document.getElementById("address").value);
+  var type = document.getElementById("type").value;
+  var latlng = markers[saving].getPosition();
+//avoid no input
+if(name=="") {document.getElementById("errorname").innerHTML = "Can't be empty!";return;}else document.getElementById("errorname").innerHTML = "";
+if(address=="") {document.getElementById("errorplace").innerHTML = "Can't be empty!";return;}else document.getElementById("errorplace").innerHTML = "";
+
+
+
+var url ="http://127.0.0.1:3000/insertNewEvent?name="+name + "&address=" + address +
+"&type=" + type + "&lat=" + latlng.lat() + "&lng=" + latlng.lng()+"&uid={{user.id}}";
+downloadUrl(url, function(data, responseCode) {
+  if (responseCode == 200 && data.length >= 1) {
+    infowindow.close();
+    document.getElementById("message").innerHTML = "Location added.";
+  }
+});
+location.reload();
+alert("succeed");
+
+}
+
+function downloadUrl(url, callback) {
+  var request = window.ActiveXObject ?
+  new ActiveXObject('Microsoft.XMLHTTP') :
+  new XMLHttpRequest;
+
+  request.onreadystatechange = function() {
+    if (request.readyState == 4) {
+      request.onreadystatechange = doNothing;
+      callback(request.responseText, request.status);
+    }
+  };
+
+  request.open('GET', url, true);
+  request.send(null);
+}
+
+function doNothing() {}
+
+
+//delete the marker (also in db)
+
+function Deleted(){
+  var r=confirm("Sure to delete");
+  if (r==true)
+  {
+    alert("Deleted!");
+    var url = "http://127.0.0.1:3000/deleteEvent?lat=" + deleteposition.lat()+ "&lng=" + deleteposition.lng();
+    $.getJSON(url, {
+      dataType: 'JSONP'
+    }, function(){
+
+    });
+  }   
+  location.reload();  
+}
+
+
+//go back to the user's location
+
+function locating(){
+navigator.geolocation.getCurrentPosition(function showPosition(myposition){
+  var pos = {
+    lat: myposition.coords.latitude,
+    lng: myposition.coords.longitude
+  };
+  map.setCenter(pos);
+  map.setZoom(16);
+});
+}
+function Rad(d){
+  return d*Math.PI/180.0;
+}
+
+function getDistance(lat1,lng1,lat2,lng2){//calculate the distance betweent user and celebrities
+  var radLat1 = Rad(lat1);
+  var radLat2 = Rad(lat2);
+  var a = radLat1 - radLat2;
+  var  b = Rad(lng1) - Rad(lng2);
+  var s = 2 * Math.asin(Math.sqrt(Math.pow(Math.sin(a/2),2) +
+    Math.cos(radLat1)*Math.cos(radLat2)*Math.pow(Math.sin(b/2),2)));
+s = s *6378.137 ;// EARTH_RADIUS;
+s = Math.round(s * 10000) / 10000; 
+return s;//km
+}
+
+
+//search amongst the celebrities
+
+function search(){
+var input = document.getElementById('pac-input').value;
+if(input=="") {
+  document.getElementById("result").innerHTML = res;
+  return;
+}
+
+var regex = new RegExp(input);
+var searcharray=new Array();
+var index=0;
+for (var i = 0; i < markers.length; i++) {
+  if(regex.test(markers[i].title)){
+    var percent=input.length/markers[i].title.length;
+
+    markers[i].percentage=percent;
+
+    searcharray[index]=markers[i];
+    index++;
+  }
+// alert(markers[i].percentage)
+}
+
+//alert(searcharray[0].title)
+searcharray.sort(function(o1, o2) {//sort by distance
+  return o1.percentage - o2.percentage;
+}); 
+
+if(searcharray.length==0)
+  var show="<h3>No result of: "+input+"</h3>";
+else{
+  var show="<h1>Search result</h1><h3>"+searcharray.length+" result(s) of: "+input+"</h3>";
+  for (var i = 0; i < searcharray.length; i++) {
+    var name = searcharray[i].title.split(" ");
+    if (name.length == 2) {
+      show=show+"<a href='/celebProfile?fName="+name[0]+"&lName="+name[1]+"'>"+searcharray[i].title+" :  "+searcharray[i].distance+" KM </a><br> "
+    } else {
+      show=show+"<a href=/#map>"+searcharray[i].title+" :  "+searcharray[i].distance+" KM </a> "
+    }
+  };}
+  document.getElementById("result").innerHTML = show;
+
+}
+
+//function to switch between map/results view
+var view = "map";
+function changeMapView() {
+  if (view == "result") {
+    var res = document.getElementById('result');
+    res.style.visibility = 'hidden';
+    var pacinp = document.getElementById('pac-input');
+    pacinp.style.visibility = 'hidden';
+    var searchbox = document.getElementById('search');
+    searchbox.style.visibility = 'hidden';
+    var loc = document.getElementById('location');
+    loc.style.visibility = 'visible';
+    var map = document.getElementById('map');
+    map.style.visibility = 'visible';
+    document.getElementById("headerMap").innerHTML = "Map";
+    document.getElementById("view").innerHTML = "Search";
+    view = "map";
+  }
+  else {
+    var map = document.getElementById('map');
+    map.style.visibility = 'hidden';
+    var pacinp = document.getElementById('pac-input');
+    pacinp.style.visibility = 'visible';
+    var searchbox = document.getElementById('search');
+    searchbox.style.visibility = 'visible';
+    var loc = document.getElementById('location');
+    loc.style.visibility = 'hidden';
+    var res = document.getElementById('result');
+    res.style.visibility = 'visible';
+    document.getElementById("headerMap").innerHTML = "";
+    document.getElementById("view").innerHTML = "Map";
+    view = "result";
+  }
+}
+
+initialize();
+</script>
+
+<!-- ===================== JavaScript so logged-in users can add new markers ======================== -->
+
+{{#if user}}
+<script>
+user="{{user.id}}";
+google.maps.event.addListener(map,"click", function(event) {   
+
+  if(t!=0&&markers[t-1].from!="database"){
+    markers[t-1].setMap(null);
+    markers[t-1]=null;
+    t=t-1;
+  }
+  else
+  {
+    markers[t] = new google.maps.Marker({
+      id: t,
+      position: event.latLng,
+      map: map,
+      userid:user
+    });
+
+for (var i = 0; i < infowindows.length; i++) {//infowindow disappear
+  infowindows[i].close();
+};
+saving=t;
+infowindow.open(map, markers[t]);
+t++;
+}
+});//map
+</script>
+{{/if}}
